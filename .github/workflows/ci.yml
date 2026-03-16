@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-15
     env:
       SKIP_ZERO: "1"
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
