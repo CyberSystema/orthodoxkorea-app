@@ -130,4 +130,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to th
 
 ## License
 
-Copyright 2025 Orthodox Metropolis of Korea (Ecumenical Patriarchate). All rights reserved.
+Copyright 2025 Orthodox Metropolis of Korea (Ecumenical Patriarchate). Licensed under the [GNU General Public License v3.0](LICENSE).
