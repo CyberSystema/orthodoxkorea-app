@@ -58,16 +58,16 @@ orthodoxkorea-app/
 
 ### iOS
 
-Open `Project.xcworkspace` in Xcode and run the **Orthodox Korea** target on a simulator or device.
+Open `Project.xcworkspace` in Xcode and run the **OrthodoxKorea App** scheme on a simulator or device.
 
 ### Android
 
 1. Launch an Android emulator from Android Studio's Device Manager
-2. Run the **Orthodox Korea** target from Xcode — the Skip build plugin automatically deploys to the running emulator
+2. Run the **OrthodoxKorea App** scheme from Xcode — the Skip build plugin automatically deploys to the running emulator
 
 ### Both Platforms Simultaneously
 
-Running from Xcode with the **Orthodox Korea** target builds and launches on both iOS Simulator and a connected Android emulator at the same time.
+Running from Xcode with the **OrthodoxKorea App** scheme builds and launches on both iOS Simulator and a connected Android emulator at the same time.
 
 ## Configuration
 
@@ -106,6 +106,16 @@ The app UI is localized into 5 languages:
 | Ukrainian | `uk` |
 
 Translations are managed in `Sources/OrthodoxKorea/Resources/Localizable.xcstrings`.
+
+## CI/CD
+
+GitHub Actions runs automatically on every push and pull request to `main`:
+
+- Installs Skip via Homebrew
+- Resolves all Swift package dependencies
+- Builds the iOS app for Simulator (validates compilation)
+
+Releases are automated — pushing a version tag (e.g., `v1.0.0`) creates a GitHub Release with a changelog.
 
 ## Security
 
