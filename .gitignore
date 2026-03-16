@@ -33,6 +33,9 @@ Package.pins
 *.dSYM.zip
 *.dSYM
 
+## Firebase config (contains client-side API keys)
+Android/app/google-services.json
+
 ## Signing & credentials
 *.mobileprovision
 *.cer
