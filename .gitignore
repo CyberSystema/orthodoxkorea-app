@@ -1,0 +1,68 @@
+## macOS
+.DS_Store
+
+## User settings
+.*.swp
+.*.swo
+
+## Xcode
+DerivedData/
+xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xcscmblueprint
+*.xccheckout
+xcodebuild*.log
+*.hmap
+
+## Swift Package Manager
+.swiftpm
+.build/
+Packages/
+Package.pins
+
+## App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Signing & credentials
+*.mobileprovision
+*.cer
+*.p12
+*.p12.password
+default.profraw
+Android/app/keystore.jks
+Android/app/keystore.properties
+
+## Gradle / Android
+local.properties
+.gradle/
+.android/
+.kotlin/
+build/
+.idea/
+
+## Skip build output
+Darwin/SkipStone/
+
+## Fastlane
+**/fastlane/apikey.json
+**/fastlane/report.xml
+**/fastlane/README.md
+**/fastlane/Preview.html
+**/fastlane/test_output
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+## Misc
+package-lock.json
