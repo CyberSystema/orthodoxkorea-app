@@ -1,10 +1,30 @@
 // OrthodoxKoreaApp.swift — Cross-platform root view and lifecycle delegate
 
 import Foundation
-import SkipFuse
 import SwiftUI
 
-let logger: Logger = Logger(subsystem: "org.orthodoxkorea.orthodoxkorea", category: "OrthodoxKorea")
+struct AppLogger {
+    let subsystem: String
+    let category: String
+
+    private func write(_ level: String, _ message: String) {
+        print("[\(level)] \(subsystem).\(category): \(message)")
+    }
+
+    func info(_ message: String) {
+        write("INFO", message)
+    }
+
+    func debug(_ message: String) {
+        write("DEBUG", message)
+    }
+
+    func error(_ message: String) {
+        write("ERROR", message)
+    }
+}
+
+let logger = AppLogger(subsystem: "org.orthodoxkorea.orthodoxkorea", category: "OrthodoxKorea")
 
 // MARK: - Root View
 

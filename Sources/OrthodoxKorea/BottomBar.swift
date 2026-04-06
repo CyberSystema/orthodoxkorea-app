@@ -21,7 +21,7 @@ struct BottomBarActions {
 
 // MARK: - iOS Liquid Glass (iOS 26+)
 
-#if !os(Android)
+#if os(iOS)
 
 @available(iOS 26.0, *)
 struct IOSGlassBottomBar: View {

@@ -1,10 +1,14 @@
 // ContentView.swift — Main app screen (WebView + bottom bar + language sheet)
 
 import SwiftUI
-import SkipWeb
 import Foundation
+#if os(iOS) || os(Android)
+import SkipWeb
+#endif
 
 struct ContentView: View {
+
+    #if os(iOS) || os(Android)
 
     @State var webState = WebViewState()
     @State var navigator = WebViewNavigator()
@@ -24,6 +28,9 @@ struct ContentView: View {
         allowsInlineMediaPlayback: true
     )
 
+    #endif
+
+    #if os(iOS) || os(Android)
     var barActions: BottomBarActions {
         BottomBarActions(
             canGoBack: webState.canGoBack,
@@ -37,11 +44,12 @@ struct ContentView: View {
             }
         )
     }
+    #endif
 
     // MARK: - Body
 
     var body: some View {
-        #if !os(Android)
+        #if os(iOS)
         iOSBody
         #else
         androidBody
@@ -50,7 +58,7 @@ struct ContentView: View {
 
     // MARK: - iOS Layout
 
-    #if !os(Android)
+    #if os(iOS)
     @ViewBuilder
     var iOSBody: some View {
         if #available(iOS 26.0, *) {
@@ -87,6 +95,7 @@ struct ContentView: View {
 
     // MARK: - Web Content
 
+    #if os(iOS) || os(Android)
     var webContent: some View {
         VStack(spacing: 0) {
             ProgressView(value: webState.isLoading ? (webState.estimatedProgress ?? 0) : 0)
@@ -196,4 +205,6 @@ struct ContentView: View {
             onDismiss: { showLanguageSheet = false }
         )
     }
+
+    #endif
 }

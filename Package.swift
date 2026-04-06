@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "orthodoxkorea-app",
     defaultLocalization: "en",
-    platforms: [.iOS(.v17), .macOS(.v14)],
+    platforms: [.iOS(.v17)],
     products: [
         .library(name: "OrthodoxKorea", type: .dynamic, targets: ["OrthodoxKorea"]),
     ],
@@ -20,7 +20,7 @@ let package = Package(
             .product(name: "SkipFuseUI", package: "skip-fuse-ui"),
             .product(name: "SkipWeb", package: "skip-web"),
             .product(name: "OneSignalFramework", package: "OneSignal-XCFramework",
-                     condition: .when(platforms: [.iOS, .macOS]))
+                     condition: .when(platforms: [.iOS]))
         ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
     ]
 )
