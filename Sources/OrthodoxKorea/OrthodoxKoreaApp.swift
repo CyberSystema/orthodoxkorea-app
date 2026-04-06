@@ -34,7 +34,7 @@ let logger: Logger = Logger(subsystem: "org.orthodoxkorea.orthodoxkorea", catego
         }
         .task {
             logger.info("Orthodox Korea app launched")
-            try? await Task.sleep(nanoseconds: 6_500_000_000)
+            try? await Task.sleep(nanoseconds: 4_500_000_000)
             withAnimation(.easeInOut(duration: 1.0)) {
                 splashOpacity = 0.0
             }

@@ -35,7 +35,27 @@ jobs:
           xcodebuild build \
             -workspace Project.xcworkspace \
             -scheme "OrthodoxKorea App" \
-            -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" \
+            -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
+
+  build-android:
+    name: Build Android
+    runs-on: macos-15
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Skip
+        run: brew install skiptools/skip/skip
+
+      - name: Verify Skip
+        run: skip checkup
+
+      - name: Build Android debug
+        run: |
+          cd Android
+          gradle buildDebug --warning-mode none -x lint

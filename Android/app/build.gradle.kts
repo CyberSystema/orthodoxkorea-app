@@ -1,5 +1,25 @@
 import java.util.Properties
 
+fun readSkipEnvProperty(key: String): String? {
+    val skipEnvFile = rootProject.file("../Skip.env")
+    if (!skipEnvFile.isFile) return null
+
+    return skipEnvFile.readLines()
+        .asSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && !it.startsWith("//") }
+        .mapNotNull { line ->
+            val delimiterIndex = line.indexOf('=')
+            if (delimiterIndex == -1) {
+                null
+            } else {
+                val propertyKey = line.substring(0, delimiterIndex).trim()
+                if (propertyKey == key) line.substring(delimiterIndex + 1).trim() else null
+            }
+        }
+        .firstOrNull()
+}
+
 plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -42,7 +62,10 @@ android {
         // versionName = MARKETING_VERSION
 
         // Externalize service keys so they're not hardcoded in source code
-        buildConfigField("String", "ONESIGNAL_APP_ID", "\"${project.findProperty("ONESIGNAL_APP_ID")}\"")
+        val oneSignalAppId = (project.findProperty("ONESIGNAL_APP_ID") as String?)
+            ?: readSkipEnvProperty("ONESIGNAL_APP_ID")
+            ?: ""
+        buildConfigField("String", "ONESIGNAL_APP_ID", "\"${oneSignalAppId}\"")
     }
 
     buildFeatures {

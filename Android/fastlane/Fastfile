@@ -8,8 +8,8 @@ Dotenv.load '../../Skip.env'
 
 default_platform(:android)
 
-# use the Homebrew gradle rather than expecting a local gradlew
-gradle_bin = (ENV['HOMEBREW_PREFIX'] ? ENV['HOMEBREW_PREFIX'] : "/opt/homebrew") + "/bin/gradle"
+# Use a caller-provided Gradle executable when available, otherwise rely on PATH.
+gradle_bin = ENV['GRADLE_BIN'] || 'gradle'
 
 default_platform(:android)
 

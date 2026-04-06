@@ -66,12 +66,16 @@ typealias AppType = NSApplication
         // Allow notifications to display while the app is in the foreground
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
-        // Clear all WebView cache so users always see fresh content
-        let dataStore = WKWebsiteDataStore.default()
-        dataStore.removeData(
-            ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
-            modifiedSince: Date.distantPast
-        ) { }
+        // Clear stale web content once on first launch after install.
+        if !UserDefaults.standard.bool(forKey: "hasClearedInitialWebData") {
+            let dataStore = WKWebsiteDataStore.default()
+            dataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                modifiedSince: Date.distantPast
+            ) {
+                UserDefaults.standard.set(true, forKey: "hasClearedInitialWebData")
+            }
+        }
 
         // Initialize OneSignal (App ID stored in Info.plist)
         guard let oneSignalAppId = Bundle.main.object(forInfoDictionaryKey: "ONESIGNAL_APP_ID") as? String else {
@@ -127,6 +131,7 @@ typealias AppType = NSApplication
 private final class PushClickListener: NSObject, OSNotificationClickListener {
     func onClick(event: OSNotificationClickEvent) {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "lastPushTime")
+        NotificationRouteBridge.shared.route(urlString: event.result.url)
     }
 }
 
@@ -142,6 +147,20 @@ private final class NotificationDelegate: NSObject, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        OneSignal.Notifications.didReceiveNotificationResponse(response)
+
+        if let urlString = response.notification.request.content.userInfo[notificationURLKey] as? String {
+            NotificationRouteBridge.shared.route(urlString: urlString)
+        }
+
+        completionHandler()
     }
 }
 
@@ -164,6 +183,7 @@ enum PostChecker {
     @discardableResult
     static func checkForNewPosts() async -> Bool {
         var newPostTitle: String?
+        var newPostURL: URL?
 
         let preferred = preferredLanguage
         let orderedCodes = [preferred] + languageCodes.filter { $0 != preferred }
@@ -185,6 +205,7 @@ enum PostChecker {
                     UserDefaults.standard.set(post.guid, forKey: key)
                     if newPostTitle == nil {
                         newPostTitle = post.title
+                        newPostURL = post.url
                     }
                 }
             } catch {
@@ -196,19 +217,22 @@ enum PostChecker {
             // Only send local notification if no OneSignal push was received in the last 6 hours
             let lastPush = UserDefaults.standard.double(forKey: "lastPushTime")
             let hoursSinceLastPush = (Date().timeIntervalSince1970 - lastPush) / 3600
-            if lastPush == 0 || hoursSinceLastPush > 6 {
-                await sendLocalNotification(title: title)
+            if lastPush == 0 || hoursSinceLastPush > 2 {
+                await sendLocalNotification(title: title, url: newPostURL)
             }
         }
 
         return true
     }
 
-    private static func sendLocalNotification(title: String) async {
+    private static func sendLocalNotification(title: String, url: URL?) async {
         let content = UNMutableNotificationContent()
         content.title = "Orthodox Korea"
         content.body = title
         content.sound = .default
+        if let url {
+            content.userInfo[notificationURLKey] = url.absoluteString
+        }
 
         let request = UNNotificationRequest(
             identifier: "newpost-\(Date().timeIntervalSince1970)",
@@ -229,6 +253,7 @@ enum PostChecker {
 private struct RSSPost {
     let title: String
     let guid: String
+    let url: URL?
 }
 
 private final class RSSParser: NSObject, XMLParserDelegate {
@@ -236,6 +261,7 @@ private final class RSSParser: NSObject, XMLParserDelegate {
     private var currentElement = ""
     private var currentTitle = ""
     private var currentGuid = ""
+    private var currentLink = ""
     private var insideItem = false
     private var latestPost: RSSPost?
 
@@ -252,6 +278,7 @@ private final class RSSParser: NSObject, XMLParserDelegate {
             insideItem = true
             currentTitle = ""
             currentGuid = ""
+            currentLink = ""
         }
     }
 
@@ -260,6 +287,7 @@ private final class RSSParser: NSObject, XMLParserDelegate {
         switch currentElement {
         case "title": currentTitle += string
         case "guid": currentGuid += string
+        case "link": currentLink += string
         default: break
         }
     }
@@ -267,9 +295,12 @@ private final class RSSParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName: String?) {
         if elementName == "item" && insideItem {
             if latestPost == nil {
+                let trimmedGuid = currentGuid.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmedLink = currentLink.trimmingCharacters(in: .whitespacesAndNewlines)
                 latestPost = RSSPost(
                     title: currentTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-                    guid: currentGuid.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guid: trimmedGuid,
+                    url: normalizedNotificationURL(from: trimmedLink) ?? normalizedNotificationURL(from: trimmedGuid)
                 )
             }
             insideItem = false

@@ -29,7 +29,7 @@ struct IOSGlassBottomBar: View {
 
     var body: some View {
         GeometryReader { geo in
-            let barHeight = min(geo.size.width * 0.16, 66)
+            let barHeight: CGFloat = geo.size.width < 390 ? 56 : (geo.size.width < 768 ? 60 : 66)
             let iconSize = barHeight * 0.38
             let labelSize = barHeight * 0.18
 

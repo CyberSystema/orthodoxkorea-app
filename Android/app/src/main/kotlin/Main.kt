@@ -11,6 +11,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color as AndroidColor
 import android.webkit.CookieManager
@@ -47,6 +49,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 internal val logger: SkipLogger = SkipLogger(subsystem = "orthodox.korea", category = "OrthodoxKorea")
+private const val notificationURLExtra = "notification_url"
+private const val appStatePreferences = "app_state"
+private const val initialWebDataClearedKey = "initial_web_data_cleared"
 
 private typealias AppRootView = OrthodoxKoreaRootView
 private typealias AppDelegate = OrthodoxKoreaAppDelegate
@@ -62,19 +67,25 @@ open class AndroidAppMain: Application {
         logger.info("starting app")
         ProcessInfo.launch(applicationContext)
 
-        // Clear all WebView cache/data
-        try {
-            WebStorage.getInstance().deleteAllData()
-            CookieManager.getInstance().removeAllCookies(null)
-            CookieManager.getInstance().flush()
-            cacheDir.listFiles()?.forEach { file ->
-                if (file.name.contains("WebView", ignoreCase = true) ||
-                    file.name.contains("chromium", ignoreCase = true)) {
-                    file.deleteRecursively()
+        if (!getSharedPreferences(appStatePreferences, Context.MODE_PRIVATE).getBoolean(initialWebDataClearedKey, false)) {
+            // Clear stale web content once on first launch after install.
+            try {
+                WebStorage.getInstance().deleteAllData()
+                CookieManager.getInstance().removeAllCookies(null)
+                CookieManager.getInstance().flush()
+                cacheDir.listFiles()?.forEach { file ->
+                    if (file.name.contains("WebView", ignoreCase = true) ||
+                        file.name.contains("chromium", ignoreCase = true)) {
+                        file.deleteRecursively()
+                    }
                 }
+                getSharedPreferences(appStatePreferences, Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(initialWebDataClearedKey, true)
+                    .apply()
+            } catch (e: Exception) {
+                logger.info("Cache clear: ${e.message}")
             }
-        } catch (e: Exception) {
-            logger.info("Cache clear: ${e.message}")
         }
 
         // Initialize OneSignal (App ID from BuildConfig/gradle.properties)
@@ -85,6 +96,7 @@ open class AndroidAppMain: Application {
             override fun onClick(event: com.onesignal.notifications.INotificationClickEvent) {
                 val prefs = getSharedPreferences("post_check", Context.MODE_PRIVATE)
                 prefs.edit().putLong("lastPushTime", System.currentTimeMillis()).apply()
+                NotificationRouteBridge.shared.route(event.result.url)
             }
         })
 
@@ -127,6 +139,7 @@ open class MainActivity: AppCompatActivity {
         }
 
         AppDelegate.shared.onLaunch()
+        handleNotificationIntent(intent)
 
         // Request notification permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -137,6 +150,12 @@ open class MainActivity: AppCompatActivity {
         CoroutineScope(Dispatchers.IO).launch {
             OneSignal.Notifications.requestPermission(true)
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNotificationIntent(intent)
     }
 
     override fun onStart() {
@@ -183,6 +202,15 @@ open class MainActivity: AppCompatActivity {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: kotlin.Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) {
+            val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+            logger.info(if (granted) "Notification permission granted" else "Notification permission denied")
+        }
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        val urlString = intent?.getStringExtra(notificationURLExtra) ?: intent?.dataString
+        NotificationRouteBridge.shared.route(urlString)
     }
 
     companion object {
@@ -205,6 +233,7 @@ object PostCheckHelper {
             try {
                 val prefs = context.getSharedPreferences("post_check", Context.MODE_PRIVATE)
                 var notificationTitle: String? = null
+                var notificationUrl: String? = null
 
                 val preferred = preferredLanguage
                 val orderedCodes = listOf(preferred) + languageCodes.filter { it != preferred }
@@ -220,17 +249,18 @@ object PostCheckHelper {
                         val response = connection.inputStream.bufferedReader().readText()
                         connection.disconnect()
 
-                        val (title, guid) = parseLatestPost(response) ?: continue
+                        val post = parseLatestPost(response) ?: continue
 
                         val key = "lastSeenGuid_${code}"
                         val lastSeenGuid = prefs.getString(key, null)
 
                         if (lastSeenGuid == null) {
-                            prefs.edit().putString(key, guid).apply()
-                        } else if (guid != lastSeenGuid) {
-                            prefs.edit().putString(key, guid).apply()
+                            prefs.edit().putString(key, post.guid).apply()
+                        } else if (post.guid != lastSeenGuid) {
+                            prefs.edit().putString(key, post.guid).apply()
                             if (notificationTitle == null) {
-                                notificationTitle = title
+                                notificationTitle = post.title
+                                notificationUrl = post.url
                             }
                         }
                     } catch (e: Exception) {
@@ -241,8 +271,8 @@ object PostCheckHelper {
                 if (notificationTitle != null) {
                     val lastPushTime = prefs.getLong("lastPushTime", 0L)
                     val hoursSinceLastPush = (System.currentTimeMillis() - lastPushTime) / 3600000.0
-                    if (lastPushTime == 0L || hoursSinceLastPush > 6) {
-                        sendNotification(context, notificationTitle)
+                    if (lastPushTime == 0L || hoursSinceLastPush > 2) {
+                        sendNotification(context, notificationTitle, notificationUrl)
                     }
                 }
             } catch (e: Exception) {
@@ -251,7 +281,9 @@ object PostCheckHelper {
         }
     }
 
-    private fun parseLatestPost(xml: String): Pair<String, String>? {
+    private data class RSSPost(val title: String, val guid: String, val url: String?)
+
+    private fun parseLatestPost(xml: String): RSSPost? {
         val factory = XmlPullParserFactory.newInstance()
         val parser = factory.newPullParser()
         parser.setInput(StringReader(xml))
@@ -260,6 +292,7 @@ object PostCheckHelper {
         var currentTag = ""
         var title = ""
         var guid = ""
+        var link = ""
 
         while (parser.eventType != XmlPullParser.END_DOCUMENT) {
             when (parser.eventType) {
@@ -269,6 +302,7 @@ object PostCheckHelper {
                         insideItem = true
                         title = ""
                         guid = ""
+                        link = ""
                     }
                 }
                 XmlPullParser.TEXT -> {
@@ -276,12 +310,16 @@ object PostCheckHelper {
                         when (currentTag) {
                             "title" -> title += parser.text
                             "guid" -> guid += parser.text
+                            "link" -> link += parser.text
                         }
                     }
                 }
                 XmlPullParser.END_TAG -> {
                     if (parser.name == "item" && insideItem) {
-                        return Pair(title.trim(), guid.trim())
+                        val trimmedGuid = guid.trim()
+                        val trimmedLink = link.trim()
+                        val url = normalizedNotificationURL(trimmedLink) ?: normalizedNotificationURL(trimmedGuid)
+                        return RSSPost(title.trim(), trimmedGuid, url?.absoluteString)
                     }
                     currentTag = ""
                 }
@@ -291,8 +329,13 @@ object PostCheckHelper {
         return null
     }
 
-    private fun sendNotification(context: Context, title: String) {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+    private fun sendNotification(context: Context, title: String, url: String?) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            if (url != null) {
+                putExtra(notificationURLExtra, url)
+            }
+        }
         val pendingIntent = PendingIntent.getActivity(
             context, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT

@@ -3,3 +3,4 @@
 // This file can be used to override various properties from Skip.env
 //PRODUCT_BUNDLE_IDENTIFIER =
 //DEVELOPMENT_TEAM =
+APS_ENVIRONMENT = production

@@ -11,6 +11,7 @@ func adaptiveBrandColor(for scheme: ColorScheme) -> Color {
 }
 
 let baseURL = "https://orthodoxkorea.org"
+public let notificationURLKey = "notification_url"
 
 // MARK: - Supported Languages
 
@@ -46,6 +47,69 @@ let homeURL: URL = {
 
 func languageURL(for code: String) -> URL {
     URL(string: "\(baseURL)/\(code)")!
+}
+
+/* SKIP @bridge */public func normalizedNotificationURL(from urlString: String?) -> URL? {
+    guard let trimmed = urlString?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !trimmed.isEmpty,
+          let url = URL(string: trimmed),
+          isAllowedURL(url) else {
+        return nil
+    }
+
+    return url
+}
+
+// MARK: - Notification Routing
+
+/* SKIP @bridge */public final class NotificationRouteBridge : @unchecked Sendable {
+
+    /* SKIP @bridge */public static let shared = NotificationRouteBridge()
+
+    private let stateQueue = DispatchQueue(label: "org.orthodoxkorea.notification-route")
+    private var handler: ((URL) -> Void)?
+    private var pendingURL: URL?
+
+    private init() {
+    }
+
+    /* SKIP @bridge */public func route(urlString: String?) {
+        guard let url = normalizedNotificationURL(from: urlString) else { return }
+
+        let activeHandler = stateQueue.sync { () -> ((URL) -> Void)? in
+            if let handler {
+                return handler
+            }
+
+            pendingURL = url
+            return nil
+        }
+
+        if let activeHandler {
+            DispatchQueue.main.async {
+                activeHandler(url)
+            }
+        }
+    }
+
+    func setHandler(_ handler: @escaping (URL) -> Void) {
+        let pendingURL = stateQueue.sync { () -> URL? in
+            self.handler = handler
+            let pendingURL = self.pendingURL
+            self.pendingURL = nil
+            return pendingURL
+        }
+
+        if let pendingURL {
+            handler(pendingURL)
+        }
+    }
+
+    func clearHandler() {
+        stateQueue.sync {
+            handler = nil
+        }
+    }
 }
 
 // MARK: - Translation Scraping (Polylang)

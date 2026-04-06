@@ -83,8 +83,9 @@ Shared app properties (version, bundle ID, etc.) are defined in `Skip.env`:
 
 ### Push Notifications
 
-- **iOS**: OneSignal App ID is stored in `Darwin/Info.plist`
-- **Android**: OneSignal App ID is stored in `Android/gradle.properties`
+- **Shared**: OneSignal App ID is defined once in `Skip.env`
+- **iOS**: `Darwin/Info.plist` reads the shared build setting
+- **Android**: `Android/app/build.gradle.kts` reads the shared value during build
 - Firebase config for Android is in `Android/app/google-services.json`
 
 ### Deployment
@@ -114,6 +115,7 @@ GitHub Actions runs automatically on every push and pull request to `main`:
 - Installs Skip via Homebrew
 - Resolves all Swift package dependencies
 - Builds the iOS app for Simulator (validates compilation)
+- Builds the Android debug app (validates Skip + Gradle integration)
 
 Releases are automated — pushing a version tag (e.g., `v1.0.0`) creates a GitHub Release with a changelog.
 

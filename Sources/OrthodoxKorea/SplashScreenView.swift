@@ -1,10 +1,10 @@
 // SplashScreenView.swift — Animated splash screen
 //
-// Animation sequence (~8s total):
+// Animation sequence (~5.5s total):
 //   Phase 1 (0–2s):   Logo fades in + scales from 0.6 → 1.0
 //   Phase 2 (1.5–3.5s): Text fades in + slides up
 //   Phase 3 (3–5.5s):  Golden glow ring pulses outward
-//   Phase 4 (6.5–7.5s): Entire splash fades out (handled by parent)
+//   Phase 4 (4.5–5.5s): Entire splash fades out (handled by parent)
 
 import SwiftUI
 

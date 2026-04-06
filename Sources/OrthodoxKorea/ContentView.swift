@@ -12,6 +12,7 @@ struct ContentView: View {
     @State var scrapedTranslations: [TranslationInfo] = []
     @State var currentPageLanguage: String = ""
     @State var isOffline = false
+    @State var pageSetupGeneration = 0
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) var openURL
@@ -123,6 +124,18 @@ struct ContentView: View {
                 }
             }
         }
+        .onAppear {
+            NotificationRouteBridge.shared.setHandler { url in
+                showLanguageSheet = false
+                isOffline = false
+                if webState.url?.absoluteString != url.absoluteString {
+                    navigator.load(url: url)
+                }
+            }
+        }
+        .onDisappear {
+            NotificationRouteBridge.shared.clearHandler()
+        }
         .onChange(of: webState.isLoading) { _, isLoading in
             if isLoading {
                 isOffline = false
@@ -143,9 +156,11 @@ struct ContentView: View {
     /// Runs pageSetupJS twice: immediately, then after 800ms for late-loading DOM widgets.
     func runPageSetup() {
         Task { @MainActor in
+            pageSetupGeneration += 1
+            let generation = pageSetupGeneration
             await doPageSetup()
             try? await Task.sleep(for: .milliseconds(800))
-            guard !webState.isLoading else { return }
+            guard generation == pageSetupGeneration, !webState.isLoading else { return }
             await doPageSetup()
         }
     }
@@ -157,7 +172,7 @@ struct ContentView: View {
             currentPageLanguage = parsed.currentLanguage
             scrapedTranslations = parsed.translations
         } catch {
-            // Keep previous data rather than showing wrong fallback
+            logger.error("page setup failed")
         }
     }
 
