@@ -10,10 +10,10 @@ let package = Package(
         .library(name: "OrthodoxKorea", type: .dynamic, targets: ["OrthodoxKorea"]),
     ],
     dependencies: [
-        .package(url: "https://source.skip.tools/skip.git", from: "1.7.6"),
-        .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0"),
-        .package(url: "https://source.skip.tools/skip-web.git", from: "0.0.1"),
-        .package(url: "https://github.com/OneSignal/OneSignal-XCFramework.git", from: "5.0.0")
+        .package(url: "https://source.skip.tools/skip.git", from: "1.8.4"),
+        .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.14.3"),
+        .package(url: "https://source.skip.tools/skip-web.git", from: "0.9.1"),
+        .package(url: "https://github.com/OneSignal/OneSignal-XCFramework.git", from: "5.5.0")
     ],
     targets: [
         .target(name: "OrthodoxKorea", dependencies: [

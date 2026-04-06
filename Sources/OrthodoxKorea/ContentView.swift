@@ -33,10 +33,7 @@ struct ContentView: View {
             onRefresh: { @MainActor in navigator.reload() },
             onForward: { @MainActor in navigator.goForward() },
             onLanguage: { @MainActor in
-                Task { @MainActor in
-                    await doPageSetup()
-                    showLanguageSheet = true
-                }
+                showLanguageSheet = true
             }
         )
     }
@@ -160,6 +157,9 @@ struct ContentView: View {
             let generation = pageSetupGeneration
             await doPageSetup()
             try? await Task.sleep(for: .milliseconds(800))
+            guard generation == pageSetupGeneration, !webState.isLoading else { return }
+            await doPageSetup()
+            try? await Task.sleep(for: .milliseconds(700))
             guard generation == pageSetupGeneration, !webState.isLoading else { return }
             await doPageSetup()
         }
