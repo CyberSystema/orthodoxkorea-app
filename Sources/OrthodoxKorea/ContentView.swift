@@ -20,6 +20,7 @@ struct ContentView: View {
 
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.openURL) var openURL
+    @Environment(\.scenePhase) var scenePhase
 
     @State var configuration = WebEngineConfiguration(
         javaScriptEnabled: true,
@@ -31,11 +32,26 @@ struct ContentView: View {
     #endif
 
     #if os(iOS) || os(Android)
+
+    /// Removes disk and memory cache so the next page load fetches fresh
+    /// content from the server instead of stale cached data.
+    func clearWebCache() async {
+        try? await navigator.removeData(
+            ofTypes: [.diskCache, .memoryCache],
+            modifiedSince: .distantPast
+        )
+    }
+
     var barActions: BottomBarActions {
         BottomBarActions(
             canGoBack: webState.canGoBack,
             canGoForward: webState.canGoForward,
-            onHome: { @MainActor in navigator.load(url: homeURL) },
+            onHome: { @MainActor in
+                Task { @MainActor in
+                    await clearWebCache()
+                    navigator.load(url: homeURL)
+                }
+            },
             onBack: { @MainActor in navigator.goBack() },
             onRefresh: { @MainActor in navigator.reload() },
             onForward: { @MainActor in navigator.goForward() },
@@ -128,6 +144,19 @@ struct ContentView: View {
                         }
                     })
                 }
+            }
+        }
+        .task {
+            // Clear cache on every app launch so the first loaded page
+            // always fetches fresh content from the server.
+            await clearWebCache()
+            navigator.reload()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                // Clear cache when the app moves to background so it is
+                // already clean for the next launch / foreground session.
+                Task { @MainActor in await clearWebCache() }
             }
         }
         .onAppear {
